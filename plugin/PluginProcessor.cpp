@@ -114,15 +114,20 @@ void SteamVoxAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer, juc
             if (r != nullptr) r[i] = right;
         }
     }
-    float outputPeak = 0.f;
-    for (int i = 0; i < n; ++i)
-        for (int channel = 0; channel < juce::jmin (ch,2); ++channel)
-            outputPeak = juce::jmax (outputPeak, std::abs (buffer.getSample (channel,i)));
-
-    meterInput.store (.85f * meterInput.load (std::memory_order_relaxed) + .15f * inputPeak,
-                      std::memory_order_relaxed);
-    meterOutput.store (.85f * meterOutput.load (std::memory_order_relaxed) + .15f * outputPeak,
-                       std::memory_order_relaxed);
+    double outputPower = 0.0;
+    const auto active = juce::jmin (ch,2);
+    for (int channel=0; channel<active; ++channel)
+        for (int i=0; i<n; ++i)
+        {
+            const auto x = (double) buffer.getSample (channel,i);
+            outputPower += x*x;
+        }
+    const auto rms = (float) std::sqrt (outputPower / juce::jmax (1,active*n));
+    const auto coeff = (float) std::exp (-n / (getSampleRate() * .300));
+    meterInput.store (coeff * meterInput.load (std::memory_order_relaxed)
+                         + (1.f - coeff) * inputPeak, std::memory_order_relaxed);
+    meterOutput.store (coeff * meterOutput.load (std::memory_order_relaxed)
+                          + (1.f - coeff) * rms, std::memory_order_relaxed);
 }
 
 void SteamVoxAudioProcessor::getStateInformation (juce::MemoryBlock& out)
