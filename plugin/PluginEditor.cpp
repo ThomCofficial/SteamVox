@@ -65,8 +65,7 @@ void SteamVoxEditor::BrassLook::drawRotarySlider (juce::Graphics& g, int x, int 
         g.setColour(juce::Colour(0xff3f2514));
         g.drawLine(c.x,c.y,tip.x,tip.y,std::max(2.f,radius*.08f));
     }
-    return;
-#endif
+#else
     auto radius = std::min (bounds.getWidth(), bounds.getHeight()) * .39f;
     auto c = bounds.getCentre();
     juce::Rectangle<float> shadow (c.x - radius, c.y-radius + 3.f, radius * 2, radius * 2);
@@ -88,6 +87,7 @@ void SteamVoxEditor::BrassLook::drawRotarySlider (juce::Graphics& g, int x, int 
     arc.addCentredArc (c.x,c.y,radius+6,radius+6,0,startAngle,startAngle+(endAngle-startAngle)*position,true);
     g.setColour (juce::Colour (0xffe5c18b));
     g.strokePath (arc,juce::PathStrokeType (2.f));
+#endif
 }
 
 SteamVoxEditor::SteamVoxEditor (SteamVoxAudioProcessor& p)
