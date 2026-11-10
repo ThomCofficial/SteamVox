@@ -14,6 +14,17 @@ const auto teal = juce::Colour (0xff284948);
 const auto ivory = juce::Colour (0xfff1dfbb);
 }
 
+void SteamVoxEditor::BrassLook::drawButtonBackground (juce::Graphics& g, juce::Button& button,
+    const juce::Colour& background, bool over, bool down)
+{
+#if STEAMVOX_HAS_ARTWORK
+    juce::ignoreUnused (g,button,background,over,down);
+    // Transparent clickable area. The faceplate draws the active OS indicator.
+#else
+    juce::LookAndFeel_V4::drawButtonBackground (g,button,background,over,down);
+#endif
+}
+
 void SteamVoxEditor::BrassLook::drawRotarySlider (juce::Graphics& g, int x, int y, int w, int h,
   float position, float startAngle, float endAngle, juce::Slider& slider)
 {
@@ -90,6 +101,7 @@ SteamVoxEditor::SteamVoxEditor (SteamVoxAudioProcessor& p)
 #endif
     }
     osButton.setClickingTogglesState (true);
+    osButton.setLookAndFeel (&look);
 #if STEAMVOX_HAS_ARTWORK
     osButton.setButtonText ({});
     osButton.setColour (juce::TextButton::buttonColourId, juce::Colours::transparentBlack);
