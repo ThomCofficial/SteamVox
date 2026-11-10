@@ -216,9 +216,23 @@ void SteamVoxEditor::paintOverChildren (juce::Graphics& g)
         const auto xform = juce::AffineTransform::translation (
             -(float)sprite.getWidth()*.5f, -(float)sprite.getHeight()*.5f)
             .scaled(factor).rotated(angle).translated(center.x,center.y);
+        // Draw the actual rotating transparent sprite, then verify its visual
+        // centre remains legible even on hosts with problematic PNG alpha.
         g.drawImageTransformed(sprite,xform,true);
+        // A small metallic centre hub is rendered natively. It cannot disappear
+        // even if the host's image resampling mishandles premultiplied alpha.
+        const float hubRadius=b.getWidth()*.09f;
+        juce::ColourGradient hub(juce::Colour(0xffffdda0),
+            center.x-hubRadius,center.y-hubRadius,
+            juce::Colour(0xff926238),
+            center.x+hubRadius,center.y+hubRadius,false);
+        g.setGradientFill(hub);
+        g.fillEllipse(center.x-hubRadius,center.y-hubRadius,
+                      hubRadius*2.f,hubRadius*2.f);
     }
 
+    // Leave no black placeholder circles: always paint the golden controls
+    // in the same coordinate space as the knobs above all children.
     // The approved faceplate must contain no baked-in needle.
     if (needle.isValid())
     {
@@ -227,12 +241,12 @@ void SteamVoxEditor::paintOverChildren (juce::Graphics& g)
         const float scale=std::min(W/designW,H/designH);
         const float left=(W-designW*scale)*.5f, top=(H-designH*scale)*.5f;
         // Needle pivots at the bottom of the seagull meter window.
-        const auto pivot=juce::Point<float>(left+627.f*scale,top+542.f*scale);
+        const auto pivot=juce::Point<float>(left+627.f*scale,top+446.f*scale);
         const float dB=20.f*std::log10(std::max(.00001f,meter));
         const float position=juce::jlimit(0.f,1.f,(dB+20.f)/23.f);
         const float angle=juce::degreesToRadians(-52.f+104.f*position);
         // Source needle pivot is 96.5% down from the top, centered horizontally.
-        const float factor=165.f*scale/(float)needle.getHeight();
+        const float factor=155.f*scale/(float)needle.getHeight();
         const auto xform=juce::AffineTransform::translation (
             -(float)needle.getWidth()*.5f,-(float)needle.getHeight()*.965f)
             .scaled(factor).rotated(angle).translated(pivot.x,pivot.y);
