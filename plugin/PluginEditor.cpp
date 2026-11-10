@@ -58,8 +58,10 @@ SteamVoxEditor::SteamVoxEditor (SteamVoxAudioProcessor& p)
         label.setColour (juce::Label::textColourId, ivory);
         addAndMakeVisible (label);
     }
-    osButton.setEnabled (false);
-    osButton.setTooltip ("Oversampling is reserved for a later verified DSP build");
+    osButton.setClickingTogglesState (true);
+    osButton.setTooltip ("Enable real 2x oversampling for nonlinear processing");
+    osAttachment = std::make_unique<juce::AudioProcessorValueTreeState::ButtonAttachment> (
+        p.parameters, "oversampling", osButton);
     osButton.setColour (juce::TextButton::buttonColourId,teal);
     osButton.setColour (juce::TextButton::textColourOffId,ivory);
     addAndMakeVisible (osButton);
