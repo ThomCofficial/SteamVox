@@ -51,6 +51,7 @@ struct Channel {
  Deesser deess,finalDeess;
  Pole bodyDetect,bodySplit;
  std::array<Eq,4> eq;
+ unsigned eqUpdate=0;
  void prepare(double sr){deess.prepare(sr);finalDeess.prepare(sr);bodyDetect.set(120,sr);bodySplit.set(260,sr);}
 };
 struct Controls {double boiler=0,steam=0,blastpipe=0,mix=1,inputDB=0,outputDB=0;bool oversampling=false;};
@@ -58,17 +59,18 @@ class SteamVoxDSP {
  double sr=48000,coefficient=0;
  Controls target{},current{};std::array<Channel,2> channels{};
  static double blend(double a,double b,double t){return a+(b-a)*smooth(t);}
- static double body(double s){return s<.25?0:s<.5?.5+4.5*smooth((s-.25)*4):s<.75?5-2*smooth((s-.5)*4):3;}
+ static double body(double s){return s<.225?0:s<.25?.5*smooth((s-.225)*40):s<.5?.5+4.5*smooth((s-.25)*4):s<.75?5-2*smooth((s-.5)*4):3;}
  double equalize(double x,Channel& c,double s){
   int q=std::min(3,int(4*s));double phase=clamp(4*s-q,0,1),v[4];
   for(int i=0;i<4;++i){
    // Previous path is held at its full-quarter setting for the transition.
    double p=i==q?phase:(i<q?1.:0.);
-   c.eq[i].set(sr,p,body(s),4*smooth((s-.5)*4));
+   if ((c.eqUpdate & 15u)==0u) c.eq[i].set(sr,p,body(s),4*smooth((s-.5)*4));
    v[i]=c.eq[i].tick(x);
   }
   // Fade into the next quarter BEFORE the boundary, guaranteeing continuity
   // as the shelf and HPF reset for the following processing journey.
+  ++c.eqUpdate;
   if(q<3 && phase>.86)return blend(v[q],v[q+1],(phase-.86)/.14);
   return v[q];
  }
