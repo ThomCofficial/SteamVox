@@ -12,6 +12,7 @@ private:
     struct BrassLook final : juce::LookAndFeel_V4
     {
         void drawRotarySlider (juce::Graphics&, int, int, int, int, float, float, float, juce::Slider&) override;
+        void drawButtonBackground (juce::Graphics&, juce::Button&, const juce::Colour&, bool, bool) override;
     } look;
     SteamVoxAudioProcessor& processor;
     std::array<juce::Slider, 6> controls;
