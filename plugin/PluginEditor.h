@@ -7,6 +7,7 @@ public:
     explicit SteamVoxEditor (SteamVoxAudioProcessor&);
     ~SteamVoxEditor() override = default;
     void paint (juce::Graphics&) override;
+    void paintOverChildren (juce::Graphics&) override;
     void resized() override;
 private:
     struct BrassLook final : juce::LookAndFeel_V4
