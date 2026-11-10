@@ -38,17 +38,20 @@ cmake --build vst-build --config Release --target SteamVox_VST3
 
 The workflow builds/tests the DSP on Windows and Linux, builds a Windows VST3, and uploads the VST3 build as a downloadable Actions artifact on successful runs.
 
-## Approved UI artwork: integration instructions
+## Approved SteamVox UI: exact artwork integration
 
-The default build includes a code-drawn resizable steampunk UI, six functional macro/gain knobs, and a live seagull VU meter. **It is a functional development scaffold**, not the finished approved art.
+The original approved soft-contrast seagull UI has been split into a clean faceplate, separate large/small brass knob sprites and a bronze VU needle. The JUCE editor implements individual host-automatable rotary controls, a transparent OS hot spot with a live amber indicator, responsive scaling with a single aspect-preserving coordinate system, and a real meter with independently animated needle.
 
-The **approved version 3** faceplate and independently cropped knob sprites are supplied in the separately downloadable \`SteamVox_UI_Assets.zip\` pack in the ChatGPT conversation. Place the three PNG files from the ZIP's \`assets/\` directory in the repository's \`assets/\` directory:
+The four source PNGs are delivered in `SteamVox_Final_UI_Pack.zip` in the development conversation. To enable the final artwork in Windows VST3 builds, **upload all four files to this branch's `assets/` folder**, with these exact names:
 
-- \`assets/steamvox_faceplate.png\`
-- \`assets/steamvox_large_knob.png\`
-- \`assets/steamvox_small_knob.png\`
+- `assets/steamvox_faceplate.png`
+- `assets/steamvox_large_knob.png`
+- `assets/steamvox_small_knob.png`
+- `assets/steamvox_vu_needle.png`
 
-CMake automatically detects these files and embeds them with JUCE BinaryData. The editor then paints the exact approved image at the original proportions while rendering dynamically rotating knob sprites and meter movement on top. **Artwork baking/retouching is not final:** the source image already depicts static controls, and the current procedural cleanup may leave visible remnants. Inspect the reconstructed artwork before any release. Do not stretch UI images independently or replace the approved design without approval.
+The CMake build automatically detects all four, embeds them into JUCE BinaryData, and enables `STEAMVOX_HAS_ARTWORK=1`. This never requires editing the DSP. If any PNG is missing, the fallback vector UI stays enabled intentionally. The code is already on GitHub; **binary PNG files are not yet committed** due to the current connector's text-only write limitation.
+
+**Important:** The approved faceplate is 1254×1135 pixels; all control/needle layout uses that design-space. Final in-Cubase visual inspection remains necessary after uploading the assets. Do not resize/merge the original artwork using image generation.
 
 ## Known limitations / remaining engineering work
 
