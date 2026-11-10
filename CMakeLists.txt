@@ -36,15 +36,26 @@ if(STEAMVOX_BUILD_PLUGIN)
     plugin/PluginProcessor.cpp
     plugin/PluginEditor.cpp)
   target_include_directories(SteamVox PRIVATE src plugin)
+  # Normalize the inadvertently doubled file extension on the uploaded needle.
+  # Copying into the build tree leaves the user's actual artwork untouched.
+  set(STEAMVOX_NEEDLE "${CMAKE_CURRENT_SOURCE_DIR}/assets/steamvox_vu_needle.png")
+  if(NOT EXISTS "${STEAMVOX_NEEDLE}" AND
+     EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/assets/steamvox_vu_needle.png.png")
+    file(MAKE_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/normalized-assets")
+    configure_file(
+      "${CMAKE_CURRENT_SOURCE_DIR}/assets/steamvox_vu_needle.png.png"
+      "${CMAKE_CURRENT_BINARY_DIR}/normalized-assets/steamvox_vu_needle.png" COPYONLY)
+    set(STEAMVOX_NEEDLE "${CMAKE_CURRENT_BINARY_DIR}/normalized-assets/steamvox_vu_needle.png")
+  endif()
   if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/assets/steamvox_faceplate.png"
     AND EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/assets/steamvox_large_knob.png"
     AND EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/assets/steamvox_small_knob.png"
-    AND EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/assets/steamvox_vu_needle.png")
+    AND EXISTS "${STEAMVOX_NEEDLE}")
     juce_add_binary_data(SteamVoxArtwork SOURCES
       assets/steamvox_faceplate.png
       assets/steamvox_large_knob.png
       assets/steamvox_small_knob.png
-      assets/steamvox_vu_needle.png)
+      "${STEAMVOX_NEEDLE}")
     target_link_libraries(SteamVox PRIVATE SteamVoxArtwork)
     target_compile_definitions(SteamVox PRIVATE STEAMVOX_HAS_ARTWORK=1)
   endif()
