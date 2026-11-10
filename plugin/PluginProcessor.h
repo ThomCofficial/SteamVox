@@ -2,6 +2,7 @@
 #include <JuceHeader.h>
 #include "../src/SteamVoxDSP.h"
 #include <atomic>
+#include <vector>
 
 class SteamVoxAudioProcessor final : public juce::AudioProcessor
 {
@@ -31,6 +32,10 @@ public:
     static juce::AudioProcessorValueTreeState::ParameterLayout makeLayout();
 private:
     steamvox::SteamVoxDSP dsp;
+    steamvox::SteamVoxDSP oversampledDsp;
+    std::unique_ptr<juce::dsp::Oversampling<float>> oversampler;
+    std::array<std::vector<float>, 2> bypassDelay;
+    int delaySize = 1, delayIndex = 0;
     std::atomic<float>* pBoiler = nullptr;
     std::atomic<float>* pSteam = nullptr;
     std::atomic<float>* pBlastpipe = nullptr;
