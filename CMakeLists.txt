@@ -36,6 +36,16 @@ if(STEAMVOX_BUILD_PLUGIN)
     plugin/PluginProcessor.cpp
     plugin/PluginEditor.cpp)
   target_include_directories(SteamVox PRIVATE src plugin)
+  if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/assets/steamvox_faceplate.png"
+    AND EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/assets/steamvox_large_knob.png"
+    AND EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/assets/steamvox_small_knob.png")
+    juce_add_binary_data(SteamVoxArtwork SOURCES
+      assets/steamvox_faceplate.png
+      assets/steamvox_large_knob.png
+      assets/steamvox_small_knob.png)
+    target_link_libraries(SteamVox PRIVATE SteamVoxArtwork)
+    target_compile_definitions(SteamVox PRIVATE STEAMVOX_HAS_ARTWORK=1)
+  endif()
   target_compile_features(SteamVox PRIVATE cxx_std_17)
   target_compile_definitions(SteamVox PUBLIC
     JUCE_WEB_BROWSER=0 JUCE_USE_CURL=0 JUCE_VST3_CAN_REPLACE_VST2=0)
