@@ -1,5 +1,8 @@
 #include "PluginEditor.h"
 #include <cmath>
+#if STEAMVOX_HAS_ARTWORK
+#include <BinaryData.h>
+#endif
 
 namespace {
 const auto brass = juce::Colour (0xffd7b479);
@@ -12,6 +15,26 @@ void SteamVoxEditor::BrassLook::drawRotarySlider (juce::Graphics& g, int x, int 
   float position, float startAngle, float endAngle, juce::Slider&)
 {
     auto bounds = juce::Rectangle<float> ((float) x, (float) y, (float) w, (float) h);
+#if STEAMVOX_HAS_ARTWORK
+    static const auto big = juce::ImageFileFormat::loadFrom (
+        BinaryData::steamvox_large_knob_png, BinaryData::steamvox_large_knob_pngSize);
+    static const auto small = juce::ImageFileFormat::loadFrom (
+        BinaryData::steamvox_small_knob_png, BinaryData::steamvox_small_knob_pngSize);
+    const auto& picture = (w > 75 ? big : small);
+    if (picture.isValid())
+    {
+        const auto c = bounds.getCentre();
+        const auto angle = startAngle + position * (endAngle - startAngle);
+        const auto scale = std::min (bounds.getWidth() / picture.getWidth(),
+                                     bounds.getHeight() / picture.getHeight());
+        const auto transform = juce::AffineTransform::translation (
+            -picture.getWidth() * .5f, -picture.getHeight() * .5f)
+            .scaled (scale).rotated (angle - juce::MathConstants<float>::pi)
+            .translated (c.x, c.y);
+        g.drawImageTransformed (picture, transform, true);
+        return;
+    }
+#endif
     auto radius = std::min (bounds.getWidth(), bounds.getHeight()) * .39f;
     auto c = bounds.getCentre();
     juce::Rectangle<float> shadow (c.x - radius, c.y-radius + 3.f, radius * 2, radius * 2);
@@ -57,6 +80,9 @@ SteamVoxEditor::SteamVoxEditor (SteamVoxAudioProcessor& p)
         label.setFont (juce::Font (juce::FontOptions (15.f,juce::Font::bold)));
         label.setColour (juce::Label::textColourId, ivory);
         addAndMakeVisible (label);
+#if STEAMVOX_HAS_ARTWORK
+        label.setVisible (false); // Approved faceplate already contains the labels.
+#endif
     }
     osButton.setClickingTogglesState (true);
     osButton.setTooltip ("Enable real 2x oversampling for nonlinear processing");
@@ -106,6 +132,25 @@ void SteamVoxEditor::drawMeter (juce::Graphics& g,juce::Rectangle<float> area)
 }
 void SteamVoxEditor::paint (juce::Graphics& g)
 {
+#if STEAMVOX_HAS_ARTWORK
+    static const auto face = juce::ImageFileFormat::loadFrom (
+        BinaryData::steamvox_faceplate_png, BinaryData::steamvox_faceplate_pngSize);
+    if (face.isValid())
+    {
+        g.drawImage (face, getLocalBounds().toFloat(), juce::RectanglePlacement::stretchToFit);
+        const auto W = (float) getWidth(), H = (float) getHeight();
+        const auto pivot = juce::Point<float> (W * .555f, H * .379f);
+        const auto dbVal = 20.f * std::log10 (std::max (.0001f, meter));
+        const auto t = juce::jlimit (0.f, 1.f, (dbVal + 36.f) / 42.f);
+        const auto a = juce::degreesToRadians (-48.f + 93.f * t);
+        const auto tip = pivot + juce::Point<float> (std::sin (a) * H * .15f,
+                                                      -std::cos (a) * H * .15f);
+        g.setColour (juce::Colour (0xff422b21));
+        g.drawLine (pivot.x, pivot.y, tip.x, tip.y, juce::jmax (1.4f, H*.002f));
+        g.fillEllipse (pivot.x-3, pivot.y-3, 6, 6);
+        return;
+    }
+#endif
     g.fillAll (juce::Colour (0xff172c2b));
     auto bounds = getLocalBounds().toFloat().reduced (8.f);
     juce::ColourGradient patina (juce::Colour (0xff42625d),bounds.getTopLeft(),
@@ -139,18 +184,33 @@ void SteamVoxEditor::paint (juce::Graphics& g)
 void SteamVoxEditor::resized()
 {
     auto W=(float)getWidth(),H=(float)getHeight();
+#if STEAMVOX_HAS_ARTWORK
+    const float centers[][2] = {
+        {.136f,.343f},{.860f,.343f},{.490f,.790f},
+        {.221f,.546f},{.490f,.546f},{.763f,.546f}
+    };
+#else
     const float centers[][2] = {
         {.12f,.29f},{.88f,.29f},{.50f,.87f},
         {.22f,.64f},{.50f,.64f},{.78f,.64f}
     };
+#endif
     for (size_t i=0;i<controls.size();++i)
     {
+#if STEAMVOX_HAS_ARTWORK
+        float size = W * (i < 3 ? .080f : .151f);
+#else
         float size = std::min(W,H)*(i<3?.112f:.185f);
+#endif
         auto x=W*centers[i][0]-size*.5f,y=H*centers[i][1]-size*.5f;
         controls[i].setBounds (juce::Rectangle<int> ((int)x,(int)y,(int)size,(int)size));
         legends[i].setBounds ((int)(x-size*.16f),(int)(y+size*.86f),(int)(size*1.32f),24);
     }
+#if STEAMVOX_HAS_ARTWORK
+    osButton.setBounds ((int)(W*.15f),(int)(H*.779f),(int)(W*.13f),(int)(H*.042f));
+#else
     osButton.setBounds ((int)(W*.83f),(int)(H*.85f),(int)(W*.10f),30);
+#endif
 }
 juce::AudioProcessorEditor* SteamVoxAudioProcessor::createEditor()
 {
