@@ -51,6 +51,29 @@ if(STEAMVOX_BUILD_PLUGIN)
     AND EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/assets/steamvox_large_knob.png"
     AND EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/assets/steamvox_small_knob.png"
     AND EXISTS "${STEAMVOX_NEEDLE}")
+    # Approved clean UI images are dimension-checked to reject the first-generation
+    # pack, which bakes needles and knobs into the faceplate.
+    function(steamvox_check_png_dimensions file_path expected label)
+      file(READ "${file_path}" dimensions OFFSET 16 LIMIT 8 HEX)
+      string(TOLOWER "${dimensions}" dimensions)
+      if(NOT dimensions STREQUAL "${expected}")
+        message(FATAL_ERROR
+          "${label}: incorrect SteamVox artwork dimensions ${dimensions}; "
+          "expected ${expected}. Please upload all four files from "
+          "SteamVox_Final_UI_Pack.zip, NOT SteamVox_UI_Assets.zip.")
+      endif()
+    endfunction()
+    steamvox_check_png_dimensions(
+      "${CMAKE_CURRENT_SOURCE_DIR}/assets/steamvox_faceplate.png"
+      "000004e60000046f" "Faceplate")
+    steamvox_check_png_dimensions(
+      "${CMAKE_CURRENT_SOURCE_DIR}/assets/steamvox_large_knob.png"
+      "0000020000000200" "Large knob")
+    steamvox_check_png_dimensions(
+      "${CMAKE_CURRENT_SOURCE_DIR}/assets/steamvox_small_knob.png"
+      "0000020000000200" "Small knob")
+    steamvox_check_png_dimensions(
+      "${STEAMVOX_NEEDLE}" "0000003800000258" "VU needle")
     juce_add_binary_data(SteamVoxArtwork SOURCES
       assets/steamvox_faceplate.png
       assets/steamvox_large_knob.png
