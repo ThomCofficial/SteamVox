@@ -25,6 +25,19 @@ jobs:
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v4
+      - name: Protect original PNG RGB during rendering
+        shell: pwsh
+        run: |
+          $source = Get-Content plugin/PluginEditor.cpp -Raw
+          if ($source -match 'drawImageTransformed\s*\([^;]*,\s*true\s*\)') {
+            throw "Artwork sprites must NOT replace original PNG RGB with brush color."
+          }
+          if ($source -notmatch 'drawImageTransformed\s*\(picture\s*,\s*xform\s*,\s*false\s*\)') {
+            throw "Main knob sprite preservation check failed."
+          }
+          if ($source -notmatch 'drawImageTransformed\s*\(needle\s*,\s*xform\s*,\s*false\s*\)') {
+            throw "VU needle sprite preservation check failed."
+          }
       - name: Configure JUCE VST3
         run: cmake -S . -B vst-build -DSTEAMVOX_BUILD_PLUGIN=ON -DBUILD_TESTING=OFF
       - name: Build Windows VST3
