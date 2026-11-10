@@ -1,19 +1,34 @@
-name: DSP checks
+name: SteamVox DSP + VST3
 on:
   push:
   pull_request:
   workflow_dispatch:
 jobs:
-  test:
+  dsp:
     strategy:
       matrix:
         os: [ubuntu-latest, windows-latest]
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
-      - name: Configure
-        run: cmake -S . -B build -DBUILD_TESTING=ON
-      - name: Build
+      - name: Configure DSP tests
+        run: cmake -S . -B build -DBUILD_TESTING=ON -DSTEAMVOX_BUILD_PLUGIN=OFF
+      - name: Build DSP tests
         run: cmake --build build --config Release
-      - name: Run tests
+      - name: Run DSP tests
         run: ctest --test-dir build -C Release --output-on-failure
+
+  vst3-windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Configure JUCE VST3
+        run: cmake -S . -B vst-build -DSTEAMVOX_BUILD_PLUGIN=ON -DBUILD_TESTING=OFF
+      - name: Build Windows VST3
+        run: cmake --build vst-build --config Release --target SteamVox_VST3 --parallel 2
+      - name: Publish VST3 build
+        uses: actions/upload-artifact@v4
+        with:
+          name: SteamVox-Windows-VST3-preview
+          path: vst-build/SteamVox_artefacts/Release/VST3/
+          if-no-files-found: error
