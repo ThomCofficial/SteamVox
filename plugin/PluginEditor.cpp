@@ -30,10 +30,41 @@ void SteamVoxEditor::BrassLook::drawRotarySlider (juce::Graphics& g, int x, int 
 {
     auto bounds = juce::Rectangle<float> ((float) x, (float) y, (float) w, (float) h);
 #if STEAMVOX_HAS_ARTWORK
-    // The editor draws all sprites in paintOverChildren, after JUCE has laid out
-    // its transparent, real APVTS-connected Slider hit targets. Doing it here
-    // can cause the controls to disappear behind the faceplate.
-    juce::ignoreUnused (g,bounds,position,startAngle,endAngle,slider);
+    // The slider draws its knob in its own paint pass. This is reliable in Cubase,
+    // unlike relying on parent paintOverChildren for child surfaces.
+    static const auto big = juce::ImageFileFormat::loadFrom (
+        BinaryData::steamvox_large_knob_png, BinaryData::steamvox_large_knob_pngSize);
+    static const auto small = juce::ImageFileFormat::loadFrom (
+        BinaryData::steamvox_small_knob_png, BinaryData::steamvox_small_knob_pngSize);
+    const auto name = slider.getName();
+    const auto& picture = (name == "BOILER" || name == "STEAM" || name == "BLASTPIPE") ? big : small;
+    const auto c = bounds.getCentre();
+    // Draw a polished brass fallback first so no missing sprite can leave a black hole.
+    const float radius = std::min(bounds.getWidth(),bounds.getHeight())*.48f;
+    juce::ColourGradient brassFill(juce::Colour(0xffffdc99),c.x-radius,c.y-radius,
+                                   juce::Colour(0xff855129),c.x+radius,c.y+radius,false);
+    brassFill.addColour(.48,juce::Colour(0xffda9b53));
+    g.setGradientFill(brassFill);
+    g.fillEllipse(c.x-radius,c.y-radius,radius*2.f,radius*2.f);
+    g.setColour(juce::Colour(0xff4a2611));
+    g.drawEllipse(c.x-radius,c.y-radius,radius*2.f,radius*2.f,1.8f);
+    const float angle = juce::degreesToRadians(-135.f+270.f*position);
+    if (picture.isValid())
+    {
+        const float factor = std::min(bounds.getWidth()/(float)picture.getWidth(),
+                                       bounds.getHeight()/(float)picture.getHeight());
+        auto xform = juce::AffineTransform::translation (
+            -(float)picture.getWidth()*.5f, -(float)picture.getHeight()*.5f)
+            .scaled(factor).rotated(angle).translated(c.x,c.y);
+        g.drawImageTransformed(picture,xform,true);
+    }
+    else
+    {
+        const float r=radius*.83f;
+        const auto tip=c+juce::Point<float>(std::sin(angle)*r,-std::cos(angle)*r);
+        g.setColour(juce::Colour(0xff3f2514));
+        g.drawLine(c.x,c.y,tip.x,tip.y,std::max(2.f,radius*.08f));
+    }
     return;
 #endif
     auto radius = std::min (bounds.getWidth(), bounds.getHeight()) * .39f;
@@ -201,38 +232,6 @@ void SteamVoxEditor::paintOverChildren (juce::Graphics& g)
     static const auto needle = juce::ImageFileFormat::loadFrom (
         BinaryData::steamvox_vu_needle_png, BinaryData::steamvox_vu_needle_pngSize);
 
-    for (size_t i = 0; i < controls.size(); ++i)
-    {
-        const auto& sprite = i >= 3 ? big : small;
-        if (!sprite.isValid()) continue;
-        const auto b = controls[i].getBounds().toFloat();
-        const auto center = b.getCentre();
-        const float value = (float) controls[i].valueToProportionOfLength (
-            controls[i].getValue());
-        // The reference sprite points straight up; rotate +/- 135 degrees.
-        const auto angle = juce::degreesToRadians (-135.f + 270.f*value);
-        const float factor = std::min(b.getWidth()/(float)sprite.getWidth(),
-                                      b.getHeight()/(float)sprite.getHeight());
-        const auto xform = juce::AffineTransform::translation (
-            -(float)sprite.getWidth()*.5f, -(float)sprite.getHeight()*.5f)
-            .scaled(factor).rotated(angle).translated(center.x,center.y);
-        // Draw the actual rotating transparent sprite, then verify its visual
-        // centre remains legible even on hosts with problematic PNG alpha.
-        g.drawImageTransformed(sprite,xform,true);
-        // A small metallic centre hub is rendered natively. It cannot disappear
-        // even if the host's image resampling mishandles premultiplied alpha.
-        const float hubRadius=b.getWidth()*.09f;
-        juce::ColourGradient hub(juce::Colour(0xffffdda0),
-            center.x-hubRadius,center.y-hubRadius,
-            juce::Colour(0xff926238),
-            center.x+hubRadius,center.y+hubRadius,false);
-        g.setGradientFill(hub);
-        g.fillEllipse(center.x-hubRadius,center.y-hubRadius,
-                      hubRadius*2.f,hubRadius*2.f);
-    }
-
-    // Leave no black placeholder circles: always paint the golden controls
-    // in the same coordinate space as the knobs above all children.
     // The approved faceplate must contain no baked-in needle.
     if (needle.isValid())
     {
