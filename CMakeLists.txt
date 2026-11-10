@@ -31,6 +31,7 @@ if(STEAMVOX_BUILD_PLUGIN)
     NEEDS_MIDI_OUTPUT FALSE
     IS_MIDI_EFFECT FALSE
     COPY_PLUGIN_AFTER_BUILD FALSE)
+  juce_generate_juce_header(SteamVox)
   target_sources(SteamVox PRIVATE
     plugin/PluginProcessor.cpp
     plugin/PluginEditor.cpp)
