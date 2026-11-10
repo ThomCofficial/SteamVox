@@ -40,12 +40,15 @@ jobs:
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Exercise embedded PNG compilation when artwork is not yet committed
+      - name: Verify final approved image pack is present
         shell: pwsh
         run: |
-          $png = [Convert]::FromBase64String("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAusB9Y9QZ9wAAAAASUVORK5CYII=")
-          @("steamvox_faceplate.png", "steamvox_large_knob.png", "steamvox_small_knob.png", "steamvox_vu_needle.png") | ForEach-Object {
-            if (!(Test-Path "assets/$_")) { [IO.File]::WriteAllBytes((Join-Path (Resolve-Path assets) $_), $png) }
+          $files = @("steamvox_faceplate.png", "steamvox_large_knob.png", "steamvox_small_knob.png", "steamvox_vu_needle.png")
+          foreach ($file in $files) {
+            if (-not (Test-Path "assets/$file")) {
+              Write-Error "Missing assets/$file. Upload the four PNGs from SteamVox_Final_UI_Pack.zip."
+              exit 1
+            }
           }
       - name: Configure JUCE with image embedding enabled
         run: cmake -S . -B art-build -DSTEAMVOX_BUILD_PLUGIN=ON -DBUILD_TESTING=OFF
