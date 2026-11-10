@@ -35,3 +35,19 @@ jobs:
           name: SteamVox-Windows-VST3-preview
           path: vst-build/SteamVox_artefacts/Release/VST3/
           if-no-files-found: error
+
+  artwork-path-compile:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Exercise embedded PNG compilation when artwork is not yet committed
+        shell: pwsh
+        run: |
+          $png = [Convert]::FromBase64String("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAusB9Y9QZ9wAAAAASUVORK5CYII=")
+          @("steamvox_faceplate.png", "steamvox_large_knob.png", "steamvox_small_knob.png", "steamvox_vu_needle.png") | ForEach-Object {
+            if (!(Test-Path "assets/$_")) { [IO.File]::WriteAllBytes((Join-Path (Resolve-Path assets) $_), $png) }
+          }
+      - name: Configure JUCE with image embedding enabled
+        run: cmake -S . -B art-build -DSTEAMVOX_BUILD_PLUGIN=ON -DBUILD_TESTING=OFF
+      - name: Compile exact-artwork code path
+        run: cmake --build art-build --config Release --target SteamVox_VST3 --parallel 2
