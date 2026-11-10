@@ -15,7 +15,7 @@ const auto ivory = juce::Colour (0xfff1dfbb);
 }
 
 void SteamVoxEditor::BrassLook::drawRotarySlider (juce::Graphics& g, int x, int y, int w, int h,
-  float position, float startAngle, float endAngle, juce::Slider&)
+  float position, float startAngle, float endAngle, juce::Slider& slider)
 {
     auto bounds = juce::Rectangle<float> ((float) x, (float) y, (float) w, (float) h);
 #if STEAMVOX_HAS_ARTWORK
@@ -23,7 +23,9 @@ void SteamVoxEditor::BrassLook::drawRotarySlider (juce::Graphics& g, int x, int 
         BinaryData::steamvox_large_knob_png, BinaryData::steamvox_large_knob_pngSize);
     static const auto small = juce::ImageFileFormat::loadFrom (
         BinaryData::steamvox_small_knob_png, BinaryData::steamvox_small_knob_pngSize);
-    const auto& picture = (w > 125 ? big : small);
+    const auto& id = slider.getName();
+    const bool isLarge = id == "BOILER" || id == "STEAM" || id == "BLASTPIPE";
+    const auto& picture = isLarge ? big : small;
     if (picture.isValid())
     {
         const auto c = bounds.getCentre();
