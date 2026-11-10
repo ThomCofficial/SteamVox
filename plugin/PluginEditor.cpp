@@ -30,26 +30,11 @@ void SteamVoxEditor::BrassLook::drawRotarySlider (juce::Graphics& g, int x, int 
 {
     auto bounds = juce::Rectangle<float> ((float) x, (float) y, (float) w, (float) h);
 #if STEAMVOX_HAS_ARTWORK
-    static const auto big = juce::ImageFileFormat::loadFrom (
-        BinaryData::steamvox_large_knob_png, BinaryData::steamvox_large_knob_pngSize);
-    static const auto small = juce::ImageFileFormat::loadFrom (
-        BinaryData::steamvox_small_knob_png, BinaryData::steamvox_small_knob_pngSize);
-    const auto& id = slider.getName();
-    const bool isLarge = id == "BOILER" || id == "STEAM" || id == "BLASTPIPE";
-    const auto& picture = isLarge ? big : small;
-    if (picture.isValid())
-    {
-        const auto c = bounds.getCentre();
-        const auto angle = startAngle + position * (endAngle - startAngle);
-        const auto scale = std::min (bounds.getWidth() / picture.getWidth(),
-                                     bounds.getHeight() / picture.getHeight());
-        const auto transform = juce::AffineTransform::translation (
-            -picture.getWidth() * .5f, -picture.getHeight() * .5f)
-            .scaled (scale).rotated (angle - (startAngle + endAngle) * .5f)
-            .translated (c.x, c.y);
-        g.drawImageTransformed (picture, transform, true);
-        return;
-    }
+    // The editor draws all sprites in paintOverChildren, after JUCE has laid out
+    // its transparent, real APVTS-connected Slider hit targets. Doing it here
+    // can cause the controls to disappear behind the faceplate.
+    juce::ignoreUnused (g,bounds,position,startAngle,endAngle,slider);
+    return;
 #endif
     auto radius = std::min (bounds.getWidth(), bounds.getHeight()) * .39f;
     auto c = bounds.getCentre();
@@ -172,37 +157,6 @@ void SteamVoxEditor::paint (juce::Graphics& g)
         const auto area = juce::Rectangle<float> ((W-designW*scale)*.5f,
              (H-designH*scale)*.5f,designW*scale,designH*scale);
         g.drawImage (face, area, juce::RectanglePlacement::stretchToFit);
-        static const auto needle = juce::ImageFileFormat::loadFrom (
-            BinaryData::steamvox_vu_needle_png, BinaryData::steamvox_vu_needle_pngSize);
-        const auto pivot = area.getTopLeft() +
-            juce::Point<float> (designW*.51f*scale,designH*.395f*scale);
-        const auto dB = 20.f * std::log10 (std::max (.00001f, meter));
-        const auto position = juce::jlimit (0.f,1.f,(dB+20.f)/23.f);
-        const auto angle = juce::degreesToRadians (-54.f+108.f*position);
-        if (needle.isValid())
-        {
-            const float factor = 153.f*scale/(float)needle.getHeight();
-            const auto transform = juce::AffineTransform::translation (
-                -(float)needle.getWidth()*.5f, -(float)needle.getHeight()*.965f)
-                .scaled (factor).rotated (angle).translated (pivot.x,pivot.y);
-            g.drawImageTransformed (needle,transform,true);
-        }
-        else
-        {
-            const auto tip = pivot + juce::Point<float> (std::sin(angle)*153.f*scale,
-                                                       -std::cos(angle)*153.f*scale);
-            g.setColour (juce::Colour (0xff513526));
-            g.drawLine (pivot.x,pivot.y,tip.x,tip.y,2.f*scale);
-        }
-        const bool os = processor.parameters.getRawParameterValue ("oversampling")->load() > .5f;
-        const auto light = area.getTopLeft() + juce::Point<float> (315.f*scale,935.f*scale);
-        g.setColour (os ? juce::Colour (0xfff4ad38) : juce::Colour (0xff513d28));
-        g.fillEllipse (light.x-8.f*scale,light.y-8.f*scale,16.f*scale,16.f*scale);
-        if (os)
-        {
-            g.setColour (juce::Colour (0xfff5c778).withAlpha (.27f));
-            g.fillEllipse (light.x-14.f*scale,light.y-14.f*scale,28.f*scale,28.f*scale);
-        }
         return;
     }
 #endif
@@ -236,6 +190,72 @@ void SteamVoxEditor::paint (juce::Graphics& g)
     }
     (void)scale;
 }
+void SteamVoxEditor::paintOverChildren (juce::Graphics& g)
+{
+#if STEAMVOX_HAS_ARTWORK
+    // Draw over the transparent controls, without using an invisible PNG hotspot.
+    static const auto big = juce::ImageFileFormat::loadFrom (
+        BinaryData::steamvox_large_knob_png, BinaryData::steamvox_large_knob_pngSize);
+    static const auto small = juce::ImageFileFormat::loadFrom (
+        BinaryData::steamvox_small_knob_png, BinaryData::steamvox_small_knob_pngSize);
+    static const auto needle = juce::ImageFileFormat::loadFrom (
+        BinaryData::steamvox_vu_needle_png, BinaryData::steamvox_vu_needle_pngSize);
+
+    for (size_t i = 0; i < controls.size(); ++i)
+    {
+        const auto& sprite = i >= 3 ? big : small;
+        if (!sprite.isValid()) continue;
+        const auto b = controls[i].getBounds().toFloat();
+        const auto center = b.getCentre();
+        const float value = (float) controls[i].valueToProportionOfLength (
+            controls[i].getValue());
+        // The reference sprite points straight up; rotate +/- 135 degrees.
+        const auto angle = juce::degreesToRadians (-135.f + 270.f*value);
+        const float factor = std::min(b.getWidth()/(float)sprite.getWidth(),
+                                      b.getHeight()/(float)sprite.getHeight());
+        const auto xform = juce::AffineTransform::translation (
+            -(float)sprite.getWidth()*.5f, -(float)sprite.getHeight()*.5f)
+            .scaled(factor).rotated(angle).translated(center.x,center.y);
+        g.drawImageTransformed(sprite,xform,true);
+    }
+
+    // The approved faceplate must contain no baked-in needle.
+    if (needle.isValid())
+    {
+        constexpr float designW = 1254.f, designH = 1135.f;
+        const float W=(float)getWidth(), H=(float)getHeight();
+        const float scale=std::min(W/designW,H/designH);
+        const float left=(W-designW*scale)*.5f, top=(H-designH*scale)*.5f;
+        // Needle pivots at the bottom of the seagull meter window.
+        const auto pivot=juce::Point<float>(left+627.f*scale,top+542.f*scale);
+        const float dB=20.f*std::log10(std::max(.00001f,meter));
+        const float position=juce::jlimit(0.f,1.f,(dB+20.f)/23.f);
+        const float angle=juce::degreesToRadians(-52.f+104.f*position);
+        // Source needle pivot is 96.5% down from the top, centered horizontally.
+        const float factor=165.f*scale/(float)needle.getHeight();
+        const auto xform=juce::AffineTransform::translation (
+            -(float)needle.getWidth()*.5f,-(float)needle.getHeight()*.965f)
+            .scaled(factor).rotated(angle).translated(pivot.x,pivot.y);
+        g.drawImageTransformed(needle,xform,true);
+    }
+    // Draw OS feedback on top of the transparent button, but keep its click area.
+    const bool isOS=processor.parameters.getRawParameterValue("oversampling")->load()>.5f;
+    const float W=(float)getWidth(),H=(float)getHeight();
+    const float scale=std::min(W/1254.f,H/1135.f);
+    const float left=(W-1254.f*scale)*.5f,top=(H-1135.f*scale)*.5f;
+    const auto light=juce::Point<float>(left+315.f*scale,top+935.f*scale);
+    g.setColour(isOS?juce::Colour(0xffffb144):juce::Colour(0xff513d28));
+    g.fillEllipse(light.x-8.f*scale,light.y-8.f*scale,16.f*scale,16.f*scale);
+    if(isOS)
+    {
+        g.setColour(juce::Colour(0xfff6cc7e).withAlpha(.32f));
+        g.fillEllipse(light.x-14.f*scale,light.y-14.f*scale,28.f*scale,28.f*scale);
+    }
+#else
+    juce::ignoreUnused(g);
+#endif
+}
+
 void SteamVoxEditor::resized()
 {
 #if STEAMVOX_HAS_ARTWORK
