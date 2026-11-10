@@ -236,26 +236,49 @@ void SteamVoxEditor::paintOverChildren (juce::Graphics& g)
     static const auto needle = juce::ImageFileFormat::loadFrom (
         BinaryData::steamvox_vu_needle_png, BinaryData::steamvox_vu_needle_pngSize);
 
-    // The approved faceplate must contain no baked-in needle.
+    // Authentic analog VU geometry. The printed scale has an approximate
+    // 620-unit radius with its centre far BELOW the visible meter window.
+    // Old versions incorrectly pivoted inside the window, so the needle
+    // could not reach the printed tick positions.
     if (needle.isValid())
     {
         constexpr float designW = 1254.f, designH = 1135.f;
         const float W=(float)getWidth(), H=(float)getHeight();
         const float scale=std::min(W/designW,H/designH);
         const float left=(W-designW*scale)*.5f, top=(H-designH*scale)*.5f;
-        // Needle pivots at the bottom of the seagull meter window.
-        const auto pivot=juce::Point<float>(left+627.f*scale,top+446.f*scale);
-        const float dB=20.f*std::log10(std::max(.00001f,meter));
-        const float position=juce::jlimit(0.f,1.f,(dB+20.f)/23.f);
-        const float angle=juce::degreesToRadians(-52.f+104.f*position);
-        // Source needle pivot is 96.5% down from the top, centered horizontally.
-        const float factor=155.f*scale/(float)needle.getHeight();
+        const auto pivot=juce::Point<float>(left+630.f*scale,top+905.f*scale);
+
+        // Map the printed nonlinear dB spacing onto its measured needle arc:
+        // values calibrated against the source faceplate's tick positions.
+        constexpr float values[] = {-20.f,-10.f,-7.f,-5.f,-3.f,-2.f,-1.f,0.f,1.f,2.f,3.f};
+        constexpr float degrees[] = {-23.5f,-17.5f,-11.8f,-7.1f,-2.5f,.4f,3.9f,7.7f,13.f,16.9f,22.6f};
+        const float dB=juce::jlimit(-20.f,3.f,20.f*std::log10(std::max(.00001f,meter)));
+        float angleDegrees=degrees[0];
+        for (int i=0; i<10; ++i)
+            if (dB >= values[i] && dB <= values[i+1])
+            {
+                const float t=(dB-values[i])/(values[i+1]-values[i]);
+                angleDegrees=degrees[i]+t*(degrees[i+1]-degrees[i]);
+                break;
+            }
+        const float angle=juce::degreesToRadians(angleDegrees);
+        // Source sprite's pivot is ~96.5% of its height. Preserve its finely
+        // textured bronze needle while narrowing it to realistic meter gauge.
+        const float needleLength=620.f*scale;
+        const float factor=needleLength/(needle.getHeight()*.965f);
         const auto xform=juce::AffineTransform::translation (
-            -(float)needle.getWidth()*.5f,-(float)needle.getHeight()*.965f)
-            .scaled(factor).rotated(angle).translated(pivot.x,pivot.y);
-        // Render the source needle texture, NOT the current brush silhouette.
-        g.setOpacity (1.f);
-        g.setImageResamplingQuality (juce::Graphics::highResamplingQuality);
+            -(float)needle.getWidth()*.5f, -(float)needle.getHeight()*.965f)
+            .scaled(factor*.40f,factor).rotated(angle).translated(pivot.x,pivot.y);
+
+        // Clip to the actual VU glass: the physical pivot lives behind the
+        // faceplate and the needle must never extend across the main knobs.
+        const juce::Graphics::ScopedSaveState save(g);
+        juce::Path aperture;
+        aperture.addRoundedRectangle(left+315.f*scale,top+260.f*scale,
+                                     625.f*scale,195.f*scale,40.f*scale);
+        g.reduceClipRegion(aperture);
+        g.setOpacity(1.f);
+        g.setImageResamplingQuality(juce::Graphics::highResamplingQuality);
         g.drawImageTransformed(needle,xform,false);
     }
     // Draw OS feedback on top of the transparent button, but keep its click area.
@@ -264,8 +287,11 @@ void SteamVoxEditor::paintOverChildren (juce::Graphics& g)
     const float scale=std::min(W/1254.f,H/1135.f);
     const float left=(W-1254.f*scale)*.5f,top=(H-1135.f*scale)*.5f;
     const auto light=juce::Point<float>(left+315.f*scale,top+935.f*scale);
-    g.setColour(isOS?juce::Colour(0xffffb144):juce::Colour(0xff513d28));
-    g.fillEllipse(light.x-8.f*scale,light.y-8.f*scale,16.f*scale,16.f*scale);
+    // Metallic bezel + lens, legible in both OFF and ON states.
+    g.setColour(juce::Colour(0xffbe8750));
+    g.fillEllipse(light.x-10.f*scale,light.y-10.f*scale,20.f*scale,20.f*scale);
+    g.setColour(isOS?juce::Colour(0xffffb144):juce::Colour(0xff38261d));
+    g.fillEllipse(light.x-7.f*scale,light.y-7.f*scale,14.f*scale,14.f*scale);
     if(isOS)
     {
         g.setColour(juce::Colour(0xfff6cc7e).withAlpha(.32f));
@@ -287,7 +313,7 @@ void SteamVoxEditor::resized()
         {175.f,400.f},{1070.f,400.f},{625.f,925.f},
         {278.f,650.f},{627.f,650.f},{974.f,650.f}
     };
-    const float diameters[6] = {95.f,95.f,72.f,188.f,188.f,188.f};
+    const float diameters[6] = {102.f,102.f,78.f,214.f,214.f,214.f};
     for(size_t i=0;i<controls.size();++i)
     {
         const float d=diameters[i]*scale;
