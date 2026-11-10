@@ -67,7 +67,9 @@ class SteamVoxDSP {
    c.eq[i].set(sr,p,body(s),4*smooth((s-.5)*4));
    v[i]=c.eq[i].tick(x);
   }
-  if(q>0 && phase<.12)return blend(v[q-1],v[q],phase/.12);
+  // Fade into the next quarter BEFORE the boundary, guaranteeing continuity
+  // as the shelf and HPF reset for the following processing journey.
+  if(q<3 && phase>.86)return blend(v[q],v[q+1],(phase-.86)/.14);
   return v[q];
  }
  double processChannel(double x,Channel& c,const Controls& k){
