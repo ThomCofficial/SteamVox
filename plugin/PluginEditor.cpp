@@ -56,7 +56,11 @@ void SteamVoxEditor::BrassLook::drawRotarySlider (juce::Graphics& g, int x, int 
         auto xform = juce::AffineTransform::translation (
             -(float)picture.getWidth()*.5f, -(float)picture.getHeight()*.5f)
             .scaled(factor).rotated(angle).translated(c.x,c.y);
-        g.drawImageTransformed(picture,xform,true);
+        // false is essential: true would mask the PNG alpha using the current
+        // dark paint brush, discarding the original brass RGB colors.
+        g.setImageResamplingQuality (juce::Graphics::highResamplingQuality);
+        g.setOpacity (1.f);
+        g.drawImageTransformed(picture,xform,false);
     }
     else
     {
@@ -249,7 +253,10 @@ void SteamVoxEditor::paintOverChildren (juce::Graphics& g)
         const auto xform=juce::AffineTransform::translation (
             -(float)needle.getWidth()*.5f,-(float)needle.getHeight()*.965f)
             .scaled(factor).rotated(angle).translated(pivot.x,pivot.y);
-        g.drawImageTransformed(needle,xform,true);
+        // Render the source needle texture, NOT the current brush silhouette.
+        g.setOpacity (1.f);
+        g.setImageResamplingQuality (juce::Graphics::highResamplingQuality);
+        g.drawImageTransformed(needle,xform,false);
     }
     // Draw OS feedback on top of the transparent button, but keep its click area.
     const bool isOS=processor.parameters.getRawParameterValue("oversampling")->load()>.5f;
