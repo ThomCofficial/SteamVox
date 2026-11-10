@@ -2,10 +2,10 @@
 #include <cmath>
 
 namespace {
-constexpr auto brass = juce::Colour (0xffd7b479);
-constexpr auto copper = juce::Colour (0xff98704c);
-constexpr auto teal = juce::Colour (0xff284948);
-constexpr auto ivory = juce::Colour (0xfff1dfbb);
+const auto brass = juce::Colour (0xffd7b479);
+const auto copper = juce::Colour (0xff98704c);
+const auto teal = juce::Colour (0xff284948);
+const auto ivory = juce::Colour (0xfff1dfbb);
 }
 
 void SteamVoxEditor::BrassLook::drawRotarySlider (juce::Graphics& g, int x, int y, int w, int h,
