@@ -1,0 +1,69 @@
+name: SteamVox DSP + VST3
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+concurrency:
+  group: steamvox-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  dsp:
+    strategy:
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Configure DSP tests
+        run: cmake -S . -B build -DBUILD_TESTING=ON -DSTEAMVOX_BUILD_PLUGIN=OFF
+      - name: Build DSP tests
+        run: cmake --build build --config Release
+      - name: Run DSP tests
+        run: ctest --test-dir build -C Release --output-on-failure
+
+  vst3-windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Protect original PNG RGB during rendering
+        shell: pwsh
+        run: |
+          $source = Get-Content plugin/PluginEditor.cpp -Raw
+          if ($source -match 'drawImageTransformed\s*\([^;]*,\s*true\s*\)') {
+            throw "Artwork sprites must NOT replace original PNG RGB with brush color."
+          }
+          if ($source -notmatch 'drawImageTransformed\s*\(picture\s*,\s*xform\s*,\s*false\s*\)') {
+            throw "Main knob sprite preservation check failed."
+          }
+          if ($source -notmatch 'drawImageTransformed\s*\(needle\s*,\s*xform\s*,\s*false\s*\)') {
+            throw "VU needle sprite preservation check failed."
+          }
+      - name: Configure JUCE VST3
+        run: cmake -S . -B vst-build -DSTEAMVOX_BUILD_PLUGIN=ON -DBUILD_TESTING=OFF
+      - name: Build Windows VST3
+        run: cmake --build vst-build --config Release --target SteamVox_VST3 --parallel 2
+      - name: Publish VST3 build
+        uses: actions/upload-artifact@v4
+        with:
+          name: SteamVox-Windows-VST3-preview
+          path: vst-build/SteamVox_artefacts/Release/VST3/
+          if-no-files-found: error
+
+  artwork-path-compile:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Verify final approved image pack is present
+        shell: pwsh
+        run: |
+          $files = @("steamvox_faceplate.png", "steamvox_large_knob.png", "steamvox_small_knob.png", "steamvox_vu_needle.png")
+          foreach ($file in $files) {
+            if (-not (Test-Path "assets/$file")) {
+              Write-Error "Missing assets/$file. Upload the four PNGs from SteamVox_Final_UI_Pack.zip."
+              exit 1
+            }
+          }
+      - name: Configure JUCE with image embedding enabled
+        run: cmake -S . -B art-build -DSTEAMVOX_BUILD_PLUGIN=ON -DBUILD_TESTING=OFF
+      - name: Compile exact-artwork code path
+        run: cmake --build art-build --config Release --target SteamVox_VST3 --parallel 2
